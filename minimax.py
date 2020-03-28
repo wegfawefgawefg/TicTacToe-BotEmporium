@@ -1,6 +1,7 @@
 import tictactoe as tt
 import random
 from tqdm import tqdm
+import math
 
 def scoreEndBoard(board, winner, myPlayer):
     if not winner:
@@ -10,62 +11,83 @@ def scoreEndBoard(board, winner, myPlayer):
     elif winner == myPlayer:
         return 1
     
-def minimax(board, player, myPlayer):
+def minimax(totalCount, board, player, myPlayer):
     prevBoards = {}
-    return minimax_inner(board, player, myPlayer, prevBoards)
+    count = [0]
+    
+    alpha = -math.inf
+    beta = math.inf
+    score = minimax_inner(count, board, player, myPlayer, prevBoards, alpha, beta)
+    totalCount[0] += count[0]
+    print("\nboards evaluated: " + str(count[0]))
+    return score
 
-def minimax_inner(board, player, myPlayer, prevBoards):
+def minimax_inner(count, board, player, myPlayer, prevBoards, alpha, beta):
     hashKey = tt.hash(board)
     if hashKey in prevBoards:
         return prevBoards[hashKey]
 
+    count[0] += 1
+
     winner = tt.getWinner(board)
     if winner:
         score = scoreEndBoard(board, winner, myPlayer)
-        prevBoards[hashKey] = score
+        # prevBoards[hashKey] = score
         return score
     elif tt.noMoreMoves(board):
         score = scoreEndBoard(board, winner, myPlayer)
-        prevBoards[hashKey] = score
+        # prevBoards[hashKey] = score
         return score    
     else:
         nextBoards = tt.listNextBoards(board, tt.togglePlayer(player))
-        if player == myPlayer:
-            bestScore = -10000
+        if player == myPlayer:  #   maximizing next moves
+            bestScore = -math.inf
             for nextBoard in nextBoards:
-                score = minimax_inner(
+                if beta <= alpha:
+                    pass
+                score = minimax_inner(count,
                     nextBoard, 
                     player=tt.togglePlayer(player),
                     myPlayer=myPlayer,
-                    prevBoards=prevBoards)
+                    prevBoards=prevBoards,
+                    alpha=alpha, beta=beta)
                 prevBoards[tt.hash(nextBoard)] = score
                 if score > bestScore:
                     bestScore = score
+                    alpha = bestScore
             return bestScore
-        else:   #   not maximizing
-            bestScore = 10000
+        else:   #   minimizing next moves
+            bestScore = math.inf
             for nextBoard in nextBoards:
-                score = minimax_inner(
+                if beta <= alpha:
+                    pass                
+                score = minimax_inner(count,
                     nextBoard, 
                     player=tt.togglePlayer(player),
                     myPlayer=myPlayer,
-                    prevBoards=prevBoards)
+                    prevBoards=prevBoards,
+                    alpha=alpha, beta=beta)
                 prevBoards[tt.hash(nextBoard)] = score
                 if score < bestScore:
                     bestScore = score
+                    beta = bestScore
             return bestScore
 
 def pickBestNextBoard(board, player, myPlayer):
+    totalCount = [0]
+
     nextBoards = tt.listNextBoards(board, myPlayer)
     bestBoard = None
     bestScore = -10000
     for nextBoard in tqdm(nextBoards):
-        score = minimax(nextBoard, 
-                        player=player,
+        score = minimax(totalCount,
+                        nextBoard, 
+                        player=tt.togglePlayer(player),
                         myPlayer=myPlayer)
         if score > bestScore:
             bestScore = score
             bestBoard = nextBoard
+    print("\ntotal boards evaluated: " + str(totalCount[0]))
     return bestBoard
 
 def playGame():
