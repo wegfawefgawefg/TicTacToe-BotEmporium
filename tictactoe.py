@@ -4,8 +4,8 @@ import random
 import math
 
 def genBoard():
-    # board = [[2, 0, 1],
-    #          [1, 0, 2],
+    # board = [[0, 2, 0],
+    #          [0, 2, 0],
     #          [0, 0, 0]]
     board = [[0, 0, 0],
              [0, 0, 0],
@@ -102,7 +102,7 @@ def scoreEndBoard(board, depth, myPlayer):
     elif winner == togglePlayer(myPlayer):
         return -1000 * math.pow(2, 9 - depth)
     elif winner == myPlayer:
-        return 1000000 / math.pow(2, depth)
+        return 100000000 / depth #/ math.pow(2, depth)
 
 def hash(board):
     hashKey = []
@@ -193,59 +193,63 @@ def pickBestNextBoard(boardScores, inBoard, myPlayer):
 #####################################################
 #                   main stoff                      #
 #####################################################
+def playGame():
+    #   generate board
+    board = genBoard()
+    #   while game not won and moves left
+            #   make move or ask me to move
+    movesLeft = True
+    winner = False
+    player = 2
+    computersPlayer = random.randint(1,2)
 
+    boardScores = genBoardScores(myPlayer=computersPlayer, currentTurnPlayer=player)
 
+    print("NEW GAME")
+    if computersPlayer == 2:
+        print("COMPUTER GOES FIRST...")
+    while(movesLeft and not winner):
+        if player == 2:
+            print("X's Turn")
+        else: # player == 1
+            print("O's Turn")
+        printBoard(board)
 
-#   generate board
-board = genBoard()
-#   while game not won and moves left
-        #   make move or ask me to move
-movesLeft = True
-winner = False
-player = 2
-computersPlayer = random.randint(1,2)
+        if player == computersPlayer:
+            bestNextBoard = pickBestNextBoard(boardScores, board, computersPlayer)
+            board = bestNextBoard
+            player = togglePlayer(player)
+        elif player == togglePlayer(computersPlayer):
+            validMove = False
+            while validMove == False:
+                move = input("input move of form 'y x' ")
+                y = int(move[0])
+                x = int(move[2])
+                #   validate move
+                if board[y][x] is not 0:
+                    print("!!!INVALID MOVE!!!")
+                    continue
+                else:
+                    validMove = True
+                board[y][x] = togglePlayer(computersPlayer)
+                player = togglePlayer(player)
 
-boardScores = genBoardScores(myPlayer=computersPlayer, currentTurnPlayer=player)
+        
+        winner = getWinner(board)
+        movesLeft = not noMoreMoves(board)
 
-print("NEW GAME")
-if computersPlayer == 2:
-    print("COMPUTER GOES FIRST...")
-while(movesLeft and not winner):
-    if player == 2:
-        print("X's Turn")
-    else: # player == 1
-        print("O's Turn")
     printBoard(board)
 
-    if player == computersPlayer:
-        bestNextBoard = pickBestNextBoard(boardScores, board, computersPlayer)
-        board = bestNextBoard
-        player = togglePlayer(player)
-    elif player == togglePlayer(computersPlayer):
-        validMove = False
-        while validMove == False:
-            move = input("input move of form 'y x' ")
-            y = int(move[0])
-            x = int(move[2])
-            #   validate move
-            if board[y][x] is not 0:
-                print("!!!INVALID MOVE!!!")
-                continue
-            else:
-                validMove = True
-            board[y][x] = togglePlayer(computersPlayer)
-            player = togglePlayer(player)
+    if winner:
+        if winner == 2:
+            print("WINNER: X")
+        else: # winner == 1
+            print("WINNER: O")
+    else:
+        print("TIE")
 
-    
-    winner = getWinner(board)
-    movesLeft = not noMoreMoves(board)
+def main():
+    playGame()
 
-printBoard(board)
-
-if winner:
-    if winner == 2:
-        print("WINNER: X")
-    else: # winner == 1
-        print("WINNER: O")
-else:
-    print("TIE")
+if __name__ == '__main__':
+    main()
