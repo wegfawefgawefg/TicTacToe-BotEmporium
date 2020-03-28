@@ -10,37 +10,63 @@ def scoreEndBoard(board, winner, myPlayer):
     elif winner == myPlayer:
         return 1
     
-def minimax(board, depth, maximizing, player, myPlayer):
+def minimax(board, player, myPlayer):
+    prevBoards = {}
+    return minimax_inner(board, player, myPlayer, prevBoards)
+
+def minimax_inner(board, player, myPlayer, prevBoards):
+    hashKey = tt.hash(board)
+    if hashKey in prevBoards:
+        return prevBoards[hashKey]
+
     winner = tt.getWinner(board)
     if winner:
-        return scoreEndBoard(board, winner, myPlayer)
+        score = scoreEndBoard(board, winner, myPlayer)
+        prevBoards[hashKey] = score
+        return score
     elif tt.noMoreMoves(board):
-        return scoreEndBoard(board, winner, myPlayer)
+        score = scoreEndBoard(board, winner, myPlayer)
+        prevBoards[hashKey] = score
+        return score    
     else:
         nextBoards = tt.listNextBoards(board, tt.togglePlayer(player))
-        if maximizing:
+        if player == myPlayer:
             bestScore = -10000
             for nextBoard in nextBoards:
-                score = minimax(nextBoard, 
-                                depth=depth+1, 
-                                maximizing=not maximizing,
-                                player=tt.togglePlayer(player),
-                                myPlayer=myPlayer)
+                score = minimax_inner(
+                    nextBoard, 
+                    player=tt.togglePlayer(player),
+                    myPlayer=myPlayer,
+                    prevBoards=prevBoards)
+                prevBoards[tt.hash(nextBoard)] = score
                 if score > bestScore:
                     bestScore = score
             return bestScore
         else:   #   not maximizing
             bestScore = 10000
             for nextBoard in nextBoards:
-                score = minimax(nextBoard, 
-                                depth=depth+1, 
-                                maximizing=maximizing,
-                                player=tt.togglePlayer(player),
-                                myPlayer=myPlayer)
+                score = minimax_inner(
+                    nextBoard, 
+                    player=tt.togglePlayer(player),
+                    myPlayer=myPlayer,
+                    prevBoards=prevBoards)
+                prevBoards[tt.hash(nextBoard)] = score
                 if score < bestScore:
                     bestScore = score
             return bestScore
 
+def pickBestNextBoard(board, player, myPlayer):
+    nextBoards = tt.listNextBoards(board, myPlayer)
+    bestBoard = None
+    bestScore = -10000
+    for nextBoard in tqdm(nextBoards):
+        score = minimax(nextBoard, 
+                        player=player,
+                        myPlayer=myPlayer)
+        if score > bestScore:
+            bestScore = score
+            bestBoard = nextBoard
+    return bestBoard
 
 def playGame():
     board = tt.genBoard()
@@ -61,19 +87,7 @@ def playGame():
         tt.printBoard(board)
 
         if player == computersPlayer:
-            nextBoards = tt.listNextBoards(board, computersPlayer)
-            bestBoard = None
-            bestScore = -10000
-            for nextBoard in tqdm(nextBoards):
-                score = minimax(nextBoard, 
-                                depth=turn, 
-                                maximizing=True,
-                                player=player,
-                                myPlayer=computersPlayer)
-                if score > bestScore:
-                    bestScore = score
-                    bestBoard = nextBoard
-            board = bestBoard
+            board = pickBestNextBoard(board, player, computersPlayer)
             player = tt.togglePlayer(player)
         elif player == tt.togglePlayer(computersPlayer):
             validMove = False
