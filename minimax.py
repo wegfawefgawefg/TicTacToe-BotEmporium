@@ -3,6 +3,15 @@ import random
 from tqdm import tqdm
 import math
 
+'''
+KNOWN BUG:
+ONLY WORKS IF COMPUTER IS X, MOTHER FUCKER:
+    STRATEGY:
+        REPLACE PLAYER==COMPUTERSpLAYER WITH MAXIMIZING SWAP DEPENDING ON TURN
+'''
+
+
+
 def scoreEndBoard(board, winner, myPlayer):
     if not winner:
         return 0
@@ -44,7 +53,7 @@ def minimax_inner(count, board, player, myPlayer, prevBoards, alpha, beta):
             bestScore = -math.inf
             for nextBoard in nextBoards:
                 if beta <= alpha:
-                    pass
+                    break
                 score = minimax_inner(count,
                     nextBoard, 
                     player=tt.togglePlayer(player),
@@ -60,7 +69,7 @@ def minimax_inner(count, board, player, myPlayer, prevBoards, alpha, beta):
             bestScore = math.inf
             for nextBoard in nextBoards:
                 if beta <= alpha:
-                    pass                
+                    break              
                 score = minimax_inner(count,
                     nextBoard, 
                     player=tt.togglePlayer(player),
@@ -95,7 +104,7 @@ def playGame():
     movesLeft = True
     winner = False
     player = 2
-    computersPlayer = 2 #random.randint(1,2)
+    computersPlayer = 1 #random.randint(1,2)
     turn = 0
 
     print("NEW GAME")

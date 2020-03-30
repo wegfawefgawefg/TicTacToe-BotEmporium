@@ -3,6 +3,9 @@ from pprint import pprint
 import random
 import math
 
+def applyMove(player, move, board):
+    board[move[1]][move[0]] = player
+
 def genBoard():
     # board = [[0, 2, 0],
     #          [0, 2, 0],
