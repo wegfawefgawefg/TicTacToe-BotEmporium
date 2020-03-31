@@ -104,7 +104,7 @@ def playGame():
     movesLeft = True
     winner = False
     player = 2
-    computersPlayer = 1 #random.randint(1,2)
+    computersPlayer = 2 #random.randint(1,2)
     turn = 0
 
     print("NEW GAME")
