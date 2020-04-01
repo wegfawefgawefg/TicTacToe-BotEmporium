@@ -63,93 +63,55 @@ def expand(mct, board, player):
             vals = {'n':0, 'v':0 }
             mct[nextBoardKey] = vals
 
-def sortBoardsByVisits(mct, nextBoards, player):
-    #   might need to replace this with tuples, 
-    #   #   lookups can step on eachother
+def simChildrenInner(mct, nextBoard, player, myPlayer, numSims):
+    nextBoardKey = genFullKey(nextBoard, tt.togglePlayer(player))
+    if nextBoardKey not in mct:
+        mct[nextBoardKey] = 0
 
-    visitsToBoard = {}
-    visits = []
-    for nextBoard in nextBoards:
-        nextBoardKey = genFullKey(nextBoard, player)
-        visitCount = mct[nextBoardKey]['n']
-        visitsToBoard[visitCount] = tt.hash(nextBoard)
-        visits.append(visitCount)
+    #   give each one a bunch of game sims
+    simScoreTotal = simulate(numSims, nextBoard, tt.togglePlayer(player), myPlayer)
+    mct[nextBoardKey] += simScoreTotal
 
-    sortedVisitCounts = sorted(visits)
-    sortedBoards = [visitsToBoard[visitCount] for visitCount in sortedVisitCounts]
-    unhashed = [tt.unHash(board) for board in sortedBoards]
-    return unhashed
-
-def explore(numExplores, count, mct, board, player, myPlayer, depth, numSimsAtDepth, numSimsAtLeaf):
-    count[0] += 1
-    if count[0] % 10000 == 0:
-        print("%: " + str(count[0] / numExplores * 10.0))
-
-    #   gen board entries and children
+def simulateChildren(mct, board, player, myPlayer, numSims, verbose=False):
     key = genFullKey(board, player)
     if key not in mct:
-        mct[key] = {'n':0, 'v':0 }
-    expand(mct, board, player)
+        mct[key] = 0
 
-    if depth >= 0:
-        nextBoards = tt.listNextBoards(board, player)
-        winner = tt.getWinner(board)
-        if not winner and nextBoards:
-            #   keep expanding
-            childScores = []
+    nextBoards = tt.listNextBoards(board, player)
+
+    winner = tt.getWinner(board)
+    if not winner and nextBoards:
+        #   add next boards to mct
+        if verbose:
+            for nextBoard in tqdm(nextBoards):
+                simChildrenInner(mct, nextBoard, player, myPlayer, numSims)
+        else:
             for nextBoard in nextBoards:
-                highestScore = explore(numExplores, count, mct, nextBoard, tt.togglePlayer(player), myPlayer, depth-1, numSimsAtDepth, numSimsAtLeaf)
-                childScores.append(highestScore)
-            
-            if nextBoards:
-                highestScore = sorted(childScores)[-1]
-                mct[key]['v'] = highestScore
-                return highestScore
-        else:
-            score = scoreEndBoard(board, tt.togglePlayer(player), myPlayer)
-            score = score * math.pow(numSimsAtLeaf * numSimsAtDepth, 2 )
-            mct[key]['v'] = score 
-            return score
-    else:
-        nextBoards = tt.listNextBoards(board, player)
-        winner = tt.getWinner(board)
-        if not winner and nextBoards:
-            #   sort the next boards by score
-            #   simulate randomly
-            nextBoards = tt.listNextBoards(board, player)
-            for i in range(numSimsAtDepth):
-                boardsLToGByScore = sortBoardsByVisits(mct, nextBoards, tt.togglePlayer(player))
-                leastVisited = boardsLToGByScore[0]
-                simScoreTotal = simulate(numSimsAtLeaf, leastVisited, tt.togglePlayer(player), myPlayer)
-                lvbkey = genFullKey(leastVisited, tt.togglePlayer(player))
-                mct[lvbkey]['v'] += simScoreTotal
-                mct[lvbkey]['n'] += numSimsAtLeaf
+                simChildrenInner(mct, nextBoard, player, myPlayer, numSims)
 
-            #   pick the highest score and return that
-            scores = [mct[genFullKey(nextBoard, tt.togglePlayer(player))]['v'] for nextBoard in nextBoards]
-            highestScore = sorted(scores)[-1]
-            return highestScore
-        else:
-            score = scoreEndBoard(board, tt.togglePlayer(player), myPlayer)
-            score = score * math.pow(numSimsAtLeaf * numSimsAtDepth, 2 )
-            mct[key]['v'] = score 
-            return score
+        #   pick the highest score and return that
+        scores = [mct[genFullKey(nextBoard, tt.togglePlayer(player))] for nextBoard in nextBoards]
+        highestScore = sorted(scores)[-1]
+        return highestScore
+    else:
+        score = scoreEndBoard(board, tt.togglePlayer(player), myPlayer)
+        score = score * math.pow(numSims, 2 )
+        mct[key] = score 
+        return score
 
 def pickBestNextMove(mct, board, player):
     nextBoards = tt.listNextBoards(board, player)
     bestBoard = None
-    greatestVal = -math.inf
+    highest = -math.inf
     for nextBoard in nextBoards:
         nextBoardKey = genFullKey(nextBoard, tt.togglePlayer(player))
-        vals = mct[nextBoardKey]
-        v = vals['v']
-        if v > greatestVal:
-            greatestVal = v
+        score = mct[nextBoardKey]
+        if score > highest:
+            highest = score
             bestBoard = nextBoard
     return bestBoard        
 
-
-def test(mct, numGames):
+def test(mct, numGames, numSims):
     numWins = 0
     numTies = 0
     numLosses = 0
@@ -160,22 +122,10 @@ def test(mct, numGames):
         winner = False
         player = 2
 
-        depth = 1
-        numExplores = 9 ** depth 
-        count = [0]
-
         computersPlayer = random.randint(1,2)
         while(movesLeft and not winner):
             if player == computersPlayer:
-                explore(numExplores,
-                    count=count, 
-                    mct=mct, 
-                    board=board, 
-                    player=player, 
-                    myPlayer=computersPlayer, 
-                    depth=depth, 
-                    numSimsAtDepth=9, 
-                    numSimsAtLeaf=1)
+                simulateChildren(mct, board, player, computersPlayer, numSims)
                 bestBoard = pickBestNextMove(mct, board, player)
                 # print("################")
                 # tt.printBoard(board)
@@ -205,40 +155,31 @@ def playGame():
     board = tt.genBoard()
     player = 2
     computersPlayer = 2
-
-    depth = 9
-    numExplores = 9 ** depth 
-    count = [0]
+    numSimsPreGame = 100000
+    numSimsOnline = 100
 
     saveMCTree = False
     fileName = 'mct.pickle'
 
     if saveMCTree:
-        explore(numExplores,
-        count=count, 
-        mct=mct, 
-        board=board, 
-        player=player, 
-        myPlayer=computersPlayer, 
-        depth=depth, 
-        numSimsAtDepth=10, 
-        numSimsAtLeaf=10)
+        simulateChildren(mct, board, player, computersPlayer, numSimsPreGame, verbose=True)
         f = open(fileName, 'wb')
         pickle.dump(mct, f, pickle.HIGHEST_PROTOCOL)
         f.close()
+        quit()
     else:
         f = open(fileName, 'rb')
         mct = pickle.load(f)
         f.close()
     
-
-    numTrials = 1000
-    numWins, numLosses, numTies = test(mct, numTrials)
-    print("VS RANDOM OPPONENT...")
-    print("numWins:"  + str(numWins))
-    print("numLosses:"  + str(numLosses))
-    print("numTies:"  + str(numTies))
-    quit()
+    # mct = {}
+    # numTrials = 100
+    # numWins, numLosses, numTies = test(mct, numTrials, numSimsOnline)
+    # print("VS RANDOM OPPONENT...")
+    # print("numWins:"  + str(numWins))
+    # print("numLosses:"  + str(numLosses))
+    # print("numTies:"  + str(numTies))
+    # quit()
 
     #   w 0.6, t 0.11, l 0.3
 
@@ -248,9 +189,6 @@ def playGame():
     winner = False
     player = 2
     computersPlayer = random.randint(1,2)
-
-
-    playDepth = 2
 
     print("NEW GAME")
     if computersPlayer == 2:
@@ -263,20 +201,9 @@ def playGame():
         tt.printBoard(board)
 
         if player == computersPlayer:
-            explore(numExplores,
-            count=count, 
-            mct=mct, 
-            board=board, 
-            player=player, 
-            myPlayer=computersPlayer, 
-            depth=playDepth, 
-            numSimsAtDepth=10, 
-            numSimsAtLeaf=10)
-
+            simulateChildren(mct, board, player, computersPlayer, numSimsOnline, verbose=True)
             bestBoard = pickBestNextMove(mct, board, player)
-            # tt.applyMove(player, bestMove, board)
             board = bestBoard
-            player = tt.togglePlayer(player)
         elif player == tt.togglePlayer(computersPlayer):
             validMove = False
             while validMove == False:
@@ -290,7 +217,7 @@ def playGame():
                 else:
                     validMove = True
                 board[y][x] = tt.togglePlayer(computersPlayer)
-                player = tt.togglePlayer(player)
+        player = tt.togglePlayer(player)
         
         winner = tt.getWinner(board)
         movesLeft = not tt.noMoreMoves(board)
