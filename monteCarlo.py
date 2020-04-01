@@ -130,7 +130,6 @@ def explore(numExplores, count, mct, board, player, myPlayer, depth, numSimsAtDe
             highestScore = sorted(scores)[-1]
             return highestScore
         else:
-            print("checking end boards")
             score = scoreEndBoard(board, tt.togglePlayer(player), myPlayer)
             score = score * math.pow(numSimsAtLeaf * numSimsAtDepth, 2 )
             mct[key]['v'] = score 
@@ -178,8 +177,11 @@ def test(mct, numGames):
                     numSimsAtDepth=9, 
                     numSimsAtLeaf=1)
                 bestBoard = pickBestNextMove(mct, board, player)
+                # print("################")
+                # tt.printBoard(board)
+                # tt.printBoard(bestBoard)
+                # print("BESTMOVE")
                 board = bestBoard
-                player = tt.togglePlayer(player)
             else:
                 moves = tt.listEmpties(board)
                 randomMove = random.choice(moves)
@@ -230,13 +232,13 @@ def playGame():
         f.close()
     
 
-    # numTrials = 100
-    # numWins, numLosses, numTies = test(mct, numTrials)
-    # print("VS RANDOM OPPONENT...")
-    # print("numWins:"  + str(numWins))
-    # print("numLosses:"  + str(numLosses))
-    # print("numTies:"  + str(numTies))
-    # quit()
+    numTrials = 1000
+    numWins, numLosses, numTies = test(mct, numTrials)
+    print("VS RANDOM OPPONENT...")
+    print("numWins:"  + str(numWins))
+    print("numLosses:"  + str(numLosses))
+    print("numTies:"  + str(numTies))
+    quit()
 
     #   w 0.6, t 0.11, l 0.3
 
