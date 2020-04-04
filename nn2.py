@@ -9,12 +9,13 @@ from torch.autograd import Variable
 import random
 
 '''
-VERSION 2.0:
-add valid move masking in both move selection and error propogation
-This should substantially clean up invalid loops and whipping, also will allow for easy dropout and a real deployable offline mode 
-    -unlike v1, which required whipping so it needed to always be online
-    -also offline mode means we can use dropout in training, and different architectures, such as some resnet
-    -try adding residuals to the forward prop to make a resnet
+TODO:
+-make offline mode
+-clean up the rest of the function, play against user, train against self
+-assert exploration is happening in play against self
+-why are moves worse without unenforcing invalid moves?, does it understand the game less? or is it just more training sets
+-expand the newtork, add dropout, try resnet
+-gpu? batch training many games at once? (is this worth the effort)
 '''
 
 '''
@@ -23,43 +24,6 @@ METRICS REQUEST LIST
 -games as x vs o
 -moves as x vs o
 -game winning blocks missed / numGames over time?
-
-
-'''
-
-'''
-add gpu training
-add some graphing
-
-train
-test
-play against it code
-
-add some dropout
-play with architecture
-
-
-TODO:
-finish the training function
-    specifically:
-        valid move punishing
-        then list moves made
-        based on end game result, punish each move relative to whether it resulted in a win or not
-
-try making it so that the error is 0 for valid moves, but error of max for invalid moves
-so probably this means the target is equal to the network output for valid moves
-    wont this make a pressure towards 0 in almost every output?
-    should we aim for 0.5 instead? 0.5 would be better maybe
-        could try both i guess
-
-
-maybe method of improvement
-instead of teaching it valid moves,
-only sample from the valid moves, so just set all unvalid moves in the output to 0 when you do the max
-this should work. 
-still send 0 through invalid moves though
-
-
 '''
 
 class Net(nn.Module):
