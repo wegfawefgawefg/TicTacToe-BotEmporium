@@ -18,6 +18,16 @@ This should substantially clean up invalid loops and whipping, also will allow f
 '''
 
 '''
+METRICS REQUEST LIST
+-tally invalid moves attempted?
+-games as x vs o
+-moves as x vs o
+-game winning blocks missed / numGames over time?
+
+
+'''
+
+'''
 add gpu training
 add some graphing
 
@@ -78,11 +88,11 @@ def genBoard():
 
 def scoreEndBoard(board, winner, myPlayer):
     if not winner:
-        return 0.5
-    elif winner == tt.togglePlayer(myPlayer):
-        return 0
-    elif winner == myPlayer:
         return 1
+    elif winner == tt.togglePlayer(myPlayer):
+        return -10
+    elif winner == myPlayer:
+        return 10
 
 '''
 should it know whos turn it is?
@@ -95,34 +105,6 @@ def oneHotTicTacToe(board, computersPlayer):
     oneHot = np.append(me, notMe)
     oneHot = torch.tensor(oneHot, dtype=torch.float32)
     return oneHot
-
-#   def playGame()
-
-
-#   def test()
-
-'''
-dont forget to let the computer be any player
-'''
-def trainToMakeValidMoves(net, criterion, optimizer, epochs):
-    for i in tqdm(range(epochs)):
-        player = 2
-        computersPlayer = 2 #random.randint(1,2)
-
-        optimizer.zero_grad()
-
-        #   generate a random board
-        board = np.random.randint(low = 0, high = 3, size = (3, 3))
-        oneHot = oneHotTicTacToe(board, computersPlayer).view(1, 1, 18)
-
-        validMoves = np.where(board == 0, 1, 0)
-        target = torch.tensor(validMoves, dtype=torch.float).view(1, 1, 9)
-
-        output = net(oneHot)
-        loss = criterion(output, target)
-        loss.backward()
-        optimizer.step()
-
 
 def trainAgainstSelf(net, criterion, optimizer, epochs):
     numInvalidMoves = 0
@@ -213,7 +195,6 @@ def trainAgainstSelf(net, criterion, optimizer, epochs):
             optimizer.step()
 
 def train(net, criterion, optimizer, epochs):
-    numInvalidMoves = 0
     for i in tqdm(range(epochs)):
         player = 2
         computersPlayer = random.randint(1,2)
@@ -221,7 +202,6 @@ def train(net, criterion, optimizer, epochs):
         optimizer.zero_grad()
 
         board = np.zeros(shape = (3, 3))
-        # board = np.random.randint(low = 0, high = 3, size = (3, 3))
 
         movesLeft = np.any(np.where(board == 0, 1, 0))
         winner = tt.getWinner(board)
@@ -230,34 +210,26 @@ def train(net, criterion, optimizer, epochs):
         outputs = []
         while(not winner and movesLeft):
             if player == computersPlayer:
-                move = None
-                moveValid = False
-                while not moveValid:
-                    #   generate a move
-                    oneHot = oneHotTicTacToe(board, computersPlayer).view(1, 1, 18)
-                    output = net(oneHot)
-                    values, index = output.view(9).max(0)
-                    if board.flatten()[index] == 0: #   if move is valid
-                        moveValid = True
+                #   generate a move
+                oneHot = oneHotTicTacToe(board, computersPlayer).view(1, 1, 18)
+                output = net(oneHot)
 
-                        #   apply the move
-                        move = index
-                        board = board.flatten()
-                        board[move] = computersPlayer
-                        board = board.reshape(3, 3)
+                #   mask out invalid moves
+                invalidMoves = np.where( board.flatten() > 0, True, False)
+                maskedOutput = output.clone().view(9)
+                maskedOutput[invalidMoves] = 0
+                values, index = maskedOutput.max(0)
+
+                #   apply the move
+                move = index
+                board = board.flatten()
+                board[move] = computersPlayer
+                board = board.reshape(3, 3)
                         
-                        #   store for later
-                        moves.append(move)
-                        outputs.append(output)
-                    else:   #   invalid move, prime the whip
-                        # print("invalid move")
-                        numInvalidMoves += 1
-                        optimizer.zero_grad()
-                        validMoves = np.where(board == 0, 1, 0)
-                        target = torch.tensor(validMoves, dtype=torch.float).view(1, 1, 9)
-                        loss = criterion(output, target)
-                        loss.backward()
-                        optimizer.step()
+                #   store for later
+                moves.append(move)
+                outputs.append(output)
+
             else:   #   opponents turn
                 empties = tt.listEmpties(board)
                 randomMove = random.choice(empties)
@@ -268,7 +240,6 @@ def train(net, criterion, optimizer, epochs):
             winner = tt.getWinner(board)
         
         #   get end score of game
-
         score = scoreEndBoard(board, winner, computersPlayer)
         for i, move in enumerate(moves):
             output = outputs[i]
@@ -282,8 +253,6 @@ def train(net, criterion, optimizer, epochs):
             optimizer.step()
 
 def test(net, criterion, optimizer, epochs):
-    numInvalidMoves = 0
-
     numWins = 0
     numLosses = 0
     numTies = 0
@@ -302,31 +271,22 @@ def test(net, criterion, optimizer, epochs):
 
         while(not winner and movesLeft):
             if player == computersPlayer:
-                move = None
-                moveValid = False
-                while not moveValid:
-                    #   generate a move
-                    oneHot = oneHotTicTacToe(board, computersPlayer).view(1, 1, 18)
-                    output = net(oneHot)
-                    values, index = output.view(9).max(0)
-                    if board.flatten()[index] == 0: #   if move is valid
-                        moveValid = True
+                #   generate a move
+                oneHot = oneHotTicTacToe(board, computersPlayer).view(1, 1, 18)
+                output = net(oneHot)
 
-                        #   apply the move
-                        move = index
-                        board = board.flatten()
-                        board[move] = computersPlayer
-                        board = board.reshape(3, 3)
+                #   mask out invalid moves
+                invalidMoves = np.where( board.flatten() > 0, True, False)
+                maskedOutput = output.clone().view(9)
+                maskedOutput[invalidMoves] = 0
+                values, index = maskedOutput.max(0)
+
+                #   apply the move
+                move = index
+                board = board.flatten()
+                board[move] = computersPlayer
+                board = board.reshape(3, 3)
                         
-                    else:   #   invalid move, prime the whip
-                        # print("invalid move")
-                        numInvalidMoves += 1
-                        optimizer.zero_grad()
-                        validMoves = np.where(board == 0, 1, 0)
-                        target = torch.tensor(validMoves, dtype=torch.float).view(1, 1, 9)
-                        loss = criterion(output, target)
-                        loss.backward()
-                        optimizer.step()
             else:   #   opponents turn
                 empties = tt.listEmpties(board)
                 randomMove = random.choice(empties)
@@ -453,8 +413,7 @@ def main():
 
     # output = net(oneHot)
 
-    trainToMakeValidMoves(net=net, criterion=criterion, optimizer=optimizer, epochs=1000)
-    train(net=net, criterion=criterion, optimizer=optimizer, epochs=10000)
+    train(net=net, criterion=criterion, optimizer=optimizer, epochs=1000)
     numWins, numLosses, numTies = test(net=net, criterion=criterion, optimizer=optimizer, epochs=1000)
     print("wins, losses, ties:")
     print(numWins)
